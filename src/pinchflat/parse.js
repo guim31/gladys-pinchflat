@@ -3,8 +3,13 @@
 // interface (Phoenix LiveView) renders every table on the server at the first
 // HTTP request, so a plain GET of a page holds the data. Two pages are read:
 //
-//   - /sources: every source (channel or playlist) with its counts of pending
-//     and downloaded videos, and the version of Pinchflat (side menu);
+//   - /sources: the first 10 sources (channels or playlists, by name) with
+//     their counts of pending and downloaded videos, "Page 1 of N", and the
+//     version of Pinchflat (side menu). The other pages of this table are only
+//     reachable through the LiveView websocket, not by a GET;
+//   - /media_profiles and /media_profiles/<id>: the profiles, and every source
+//     of a profile (no pagination there), to know all the sources when there
+//     are more than 10;
 //   - /sources/<id>: the first page of the "Pending" tab (10 videos, newest
 //     upload first, a red icon and the yt-dlp message on a failed download)
 //     and of the "Downloaded" tab (10 videos, newest upload first), with the
@@ -55,9 +60,47 @@ const rowsOf = (html) => {
   return body ? body[1].split(/<tr[\s>]/).slice(1) : [];
 };
 
+/** "Page 1 of 3" under a table: { page, pages }, or null. */
+export function parsePagination(html) {
+  const match = /Page\s*(<span[^>]*>[\s\S]*?<\/span>)\s*of\s*(<span[^>]*>[\s\S]*?<\/span>)/.exec(
+    html,
+  );
+  if (!match) {
+    return null;
+  }
+  const [page] = numbersIn(match[1]);
+  const [pages] = numbersIn(match[2]);
+  return Number.isInteger(page) && Number.isInteger(pages) ? { page, pages } : null;
+}
+
+/** The /media_profiles page: the ids of the profiles. */
+export function parseProfiles(html) {
+  const ids = new Set();
+  for (const row of rowsOf(html)) {
+    for (const match of row.matchAll(/href="[^"]*\/media_profiles\/(\d+)"/g)) {
+      ids.add(match[1]);
+    }
+  }
+  return [...ids];
+}
+
+/** A /media_profiles/<id> page: every source of the profile, `{ id, name }`. */
+export function parseProfileSources(html) {
+  const sources = [];
+  const seen = new Set();
+  for (const row of rowsOf(html)) {
+    const link = /href="[^"]*\/sources\/(\d+)"[^>]*>([\s\S]*?)<\/a>/.exec(row);
+    if (link && !seen.has(link[1])) {
+      seen.add(link[1]);
+      sources.push({ id: link[1], name: decode(stripTags(link[2])) || `#${link[1]}` });
+    }
+  }
+  return sources;
+}
+
 /**
- * The /sources page.
- * @returns {{ version: string|null, sources: Array<{ id: string, name: string, pending: number, downloaded: number }> }}
+ * The /sources page (its first page of 10 sources).
+ * @returns {{ version: string|null, complete: boolean, sources: Array<{ id: string, name: string, pending: number, downloaded: number }> }}
  */
 export function parseSources(html) {
   const sources = [];
@@ -87,7 +130,13 @@ export function parseSources(html) {
       downloaded,
     });
   }
-  return { version: parseVersion(html), sources };
+  const pagination = parsePagination(html);
+  return {
+    version: parseVersion(html),
+    // Without the pagination line (no source yet), the page shows them all.
+    complete: pagination ? pagination.pages <= 1 : true,
+    sources,
+  };
 }
 
 /** The content of one tab of a source page (`pending`, `downloaded`…), or null. */

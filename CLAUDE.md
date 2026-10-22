@@ -255,6 +255,12 @@ source YouTube (`@jawed`, une vidéo de 19 s) téléchargée depuis le Beelink. 
   `/sources/<id>` contient les données, sans websocket. Les nombres sont dans
   `x-text="Intl.NumberFormat().format(N)"`, les onglets d'une source dans `x-show="openTab === &#39;pending&#39;"`,
   l'erreur yt-dlp d'une vidéo dans l'infobulle (`hero-exclamation-circle` puis `<div class="px-3">…</div>`).
+- **`/sources` est paginé par 10** (`results_per_page` figé, pages suivantes seulement par le websocket LiveView,
+  `phx-click="page_change"`) : relevé par la relecture, la première version n'en voyait que 10. Au-delà, la liste
+  complète vient de `/media_profiles` puis `/media_profiles/<id>` (onglet Sources non paginé), et les compteurs de ces
+  sources de leur propre page (« Showing x of N »), lue à tour de rôle. `/sources` trie sans tenir compte de la casse,
+  la page d'un profil en tient compte. Le module `source_html/index_table_live.ex` du dépôt est mort (non paginé, pas
+  utilisé).
 - **La page d'accueil `/` ne sert pas** : tant que l'onboarding n'est pas terminé, elle affiche l'assistant de
   démarrage, et `/?onboarding=0` écrit un réglage. `/sources` s'affiche toujours.
 - Onglets d'une source : 10 vidéos par page, triées par **date de mise en ligne** (`uploaded_at`), pas de

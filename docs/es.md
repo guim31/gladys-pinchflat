@@ -126,9 +126,14 @@ no se anuncia.
 - Una descarga fallida se detecta en la siguiente lectura de su fuente: en
   menos de 15 minutos. Solo se examinan los 10 vídeos pendientes más recientes
   de cada fuente.
-- Se leen como máximo 10 páginas de fuentes por actualización: con muchas
-  fuentes, las primeras lecturas tardan algunas actualizaciones, y una ráfaga de
-  descargas se anuncia de 10 en 10.
+- Se leen como máximo 10 páginas de fuentes por actualización. Con más de 10
+  fuentes, Pinchflat solo muestra 10 en su página de fuentes: las demás se leen
+  por turnos (10 por actualización), así que sus novedades pueden esperar
+  algunas actualizaciones.
+- Como máximo 10 eventos de cada tipo por actualización: por encima (una ráfaga
+  de descargas), los vídeos se cuentan, pero no se anuncian. Un vídeo eliminado
+  mientras otro se descarga, entre dos actualizaciones, puede ocultar esa
+  descarga.
 - La integración lee las páginas web de Pinchflat 2025.9.26: una versión futura
   que las cambie puede requerir una actualización de la integración.
 - Sin relación con Pinchflat, YouTube ni Google.

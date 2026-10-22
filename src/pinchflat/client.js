@@ -14,7 +14,13 @@
 // -----------------------------------------------------------------------------
 
 import { httpRequest } from './http.js';
-import { isPinchflatPage, parseSource, parseSources } from './parse.js';
+import {
+  isPinchflatPage,
+  parseProfileSources,
+  parseProfiles,
+  parseSource,
+  parseSources,
+} from './parse.js';
 
 export const ERROR_KINDS = Object.freeze({
   UNREACHABLE: 'unreachable', // no answer: down, wrong address, firewall
@@ -106,9 +112,20 @@ export class PinchflatClient {
     return body;
   }
 
-  /** The sources, their counts, and the version of Pinchflat. */
+  /** The first 10 sources with their counts, and the version of Pinchflat. */
   async sources() {
     return parseSources(await this.page('/sources'));
+  }
+
+  /** Every source, `{ id, name }`, through the pages of the media profiles. */
+  async allSources() {
+    const all = new Map();
+    for (const id of parseProfiles(await this.page('/media_profiles'))) {
+      for (const source of parseProfileSources(await this.page(`/media_profiles/${id}`))) {
+        all.set(source.id, source);
+      }
+    }
+    return [...all.values()];
   }
 
   /** The first page of the pending and downloaded videos of one source. */

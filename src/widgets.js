@@ -55,7 +55,12 @@ function message(text, language) {
 /** One row of the list: title, source, date of the download (or of the upload). */
 export function videoItem(video) {
   const item = { title: fit(video.title || '…', 60), subtitle: fit(video.source || '', 60) };
-  const date = video.at ? new Date(video.at) : video.uploadDate ? new Date(video.uploadDate) : null;
+  // A bare upload date is placed at noon UTC: the same day in every time zone.
+  const date = video.at
+    ? new Date(video.at)
+    : video.uploadDate
+      ? new Date(`${video.uploadDate}T12:00:00Z`)
+      : null;
   if (date && Number.isFinite(date.getTime())) {
     item.date = date.toISOString();
   }

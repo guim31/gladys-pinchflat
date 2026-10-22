@@ -116,12 +116,21 @@ export class FakePinchflat {
     };
   }
 
+  /** Sources by name: /sources ignores the case, a profile page does not (as in Pinchflat). */
+  sorted({ ignoreCase = false } = {}) {
+    const key = (source) => (ignoreCase ? source.name.toLowerCase() : source.name);
+    return [...this.sources.values()].sort((a, b) =>
+      key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0,
+    );
+  }
+
+  /** The /sources page: its first page only, 10 sources. */
   renderSources() {
-    const rows = [...this.sources.values()]
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((source) => {
-        const { pending, downloaded } = this.lists(source);
-        return `<tr class="hover:bg-strokedark">
+    const all = this.sorted({ ignoreCase: true });
+    const pages = Math.max(1, Math.ceil(all.length / 10));
+    const rows = all.slice(0, 10).map((source) => {
+      const { pending, downloaded } = this.lists(source);
+      return `<tr class="hover:bg-strokedark">
 <td class="px-4 py-5 truncate max-w-xs">
 <a href="/sources/${source.id}" class="underline" target="_self">
 ${escape(source.name)}
@@ -142,7 +151,7 @@ Default
 </a>
 </td>
 </tr>`;
-      });
+    });
     return page(
       this.version,
       `<table class="w-full table-auto bg-boxdark text-white">
@@ -150,7 +159,47 @@ Default
 <tbody>
 ${rows.join('')}
 </tbody>
-</table>`,
+</table>
+${
+  all.length
+    ? `<section class="flex justify-center mt-5"><nav><ul class="flex flex-wrap items-center">
+<li>
+Page ${number(1)} of ${number(pages)}
+</li>
+</ul></nav></section>`
+    : ''
+}`,
+    );
+  }
+
+  renderProfiles() {
+    return page(
+      this.version,
+      `<table><tbody>
+<tr><td><a href="/media_profiles/1" class="underline">Default</a></td>
+<td><a href="/media_profiles/1/edit"><span class="hero-pencil-square"></span></a></td></tr>
+</tbody></table>`,
+    );
+  }
+
+  renderProfile() {
+    return page(
+      this.version,
+      `<table><tbody>
+${this.sorted()
+  .map(
+    (source) => `<tr class="hover:bg-strokedark">
+<td class="px-4 py-5 ">
+<a href="/sources/${source.id}" class="underline" target="_self">
+${escape(source.name)}
+</a>
+</td><td class="px-4 py-5 flex justify-end">
+<a href="/sources/${source.id}/edit" class="mr-4"><span class="hero-pencil-square"></span></a>
+</td>
+</tr>`,
+  )
+  .join('')}
+</tbody></table>`,
     );
   }
 
@@ -250,6 +299,12 @@ ${this.renderTab('downloaded', downloaded)}
     }
     if (path === '/sources') {
       return html(200, this.renderSources());
+    }
+    if (path === '/media_profiles') {
+      return html(200, this.renderProfiles());
+    }
+    if (path === '/media_profiles/1') {
+      return html(200, this.renderProfile());
     }
     const match = /^\/sources\/(\d+)$/.exec(path);
     if (match && this.sources.has(match[1])) {

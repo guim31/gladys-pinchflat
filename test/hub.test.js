@@ -171,21 +171,74 @@ test('a failed download fires download_failed once, a success clears the error',
   assert.equal(events(w, 'video_downloaded').length, 1);
 });
 
-test('at most 10 source pages per reading; the others wait their turn', async (t) => {
+test('more than 10 sources: all are listed, at most 10 pages per reading', async (t) => {
   const pinchflat = new FakePinchflat();
   for (let id = 1; id <= 25; id += 1) {
     pinchflat.addSource(id, `Channel ${String(id).padStart(2, '0')}`, { downloaded: 1 });
   }
   const w = await world(t, { pinchflat });
-  const pages = () => pinchflat.requests.filter((r) => /^\/sources\/\d+$/.test(r.path)).length;
-  assert.equal(pages(), 10);
+  const pages = () => pinchflat.requests.filter((r) => /^\/sources\/\d+$/.test(r.path));
+  assert.equal(pages().length, 10);
+  assert.equal(state(w, 'sources'), 25, '/sources only shows 10: the profiles list them all');
   await w.hub.pollAll();
   await w.hub.pollAll();
-  assert.equal(pages(), 25);
+  assert.equal(pages().length, 30);
+  assert.equal(new Set(pages().map((r) => r.path)).size, 25, 'every source read once');
+  assert.equal(state(w, 'downloaded'), 25);
+  assert.deepEqual(w.fake.sceneEvents, [], 'seeded, not announced');
+});
+
+test('a source beyond the first page: its download is announced in turn, counted once', async (t) => {
+  const pinchflat = new FakePinchflat();
+  for (let id = 1; id <= 15; id += 1) {
+    pinchflat.addSource(id, `Channel ${String(id).padStart(2, '0')}`, { downloaded: 1 });
+  }
+  const w = await world(t, { pinchflat });
+  await w.hub.pollAll(); // every source seeded
+  pinchflat.download(pinchflat.addVideo(15, 'Far away', { uploadDate: '2026-10-22' }));
+  for (let i = 0; i < 3; i += 1) {
+    await w.hub.pollAll();
+  }
+  assert.deepEqual(
+    events(w, 'video_downloaded').map((event) => [event.data.source, event.data.title]),
+    [['Channel 15', 'Far away']],
+  );
+  assert.equal(state(w, 'downloaded_today'), 1);
+  assert.equal(state(w, 'downloaded'), 16);
+});
+
+test('a source page that fails while its counts moved is read again later', async (t) => {
+  const w = await world(t);
+  const original = w.pinchflat.handle.bind(w.pinchflat);
+  let broken = true;
+  w.pinchflat.handle = (url, options) =>
+    broken && url.endsWith('/sources/2')
+      ? { status: 504, headers: {}, body: '' }
+      : original(url, options);
+  w.pinchflat.download(w.pinchflat.addVideo(2, 'Late news', { uploadDate: '2026-10-22' }));
   await w.hub.pollAll();
-  assert.equal(pages(), 25, 'nothing moved: /sources only');
-  // A source that was waiting is seeded, not announced.
-  assert.deepEqual(w.fake.sceneEvents, []);
+  assert.deepEqual(events(w, 'video_downloaded'), []);
+  broken = false;
+  await w.hub.pollAll();
+  assert.equal(events(w, 'video_downloaded').length, 1);
+});
+
+test('a failure pushed off the first page by newer videos is not announced twice', async (t) => {
+  const w = await world(t);
+  const members = w.pinchflat.addVideo(2, 'Members only', { uploadDate: '2026-10-01' });
+  w.pinchflat.fail(members);
+  await w.hub.pollAll();
+  assert.equal(events(w, 'download_failed').length, 1);
+  const newer = [];
+  for (let i = 0; i < 11; i += 1) {
+    newer.push(w.pinchflat.addVideo(2, `Newer ${i}`, { uploadDate: '2026-10-21' }));
+  }
+  await w.hub.pollAll();
+  for (const id of newer) {
+    w.pinchflat.download(id);
+  }
+  await w.hub.pollAll();
+  assert.equal(events(w, 'download_failed').length, 1);
 });
 
 test('at most 10 events of a kind per reading', async (t) => {

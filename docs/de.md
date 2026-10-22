@@ -132,9 +132,14 @@ schon hatte, wird nicht gemeldet.
 - Ein fehlgeschlagener Download wird bei der nächsten Abfrage seiner Quelle
   erkannt: innerhalb von 15 Minuten. Nur die 10 neuesten ausstehenden Videos
   jeder Quelle werden auf Fehler geprüft.
-- Höchstens 10 Quellenseiten werden pro Aktualisierung gelesen: Bei vielen
-  Quellen dauern die ersten Abfragen einige Aktualisierungen, und eine Welle von
-  Downloads wird in Zehnergruppen gemeldet.
+- Höchstens 10 Quellenseiten werden pro Aktualisierung gelesen. Ab 10 Quellen
+  zeigt Pinchflat auf seiner Quellenseite nur 10: Die anderen werden reihum
+  gelesen (10 pro Aktualisierung), ihre Neuigkeiten können also einige
+  Aktualisierungen warten.
+- Höchstens 10 Ereignisse jeder Art pro Aktualisierung: Darüber hinaus (eine
+  Welle von Downloads) werden die Videos gezählt, aber nicht gemeldet. Ein
+  Video, das gelöscht wird, während ein anderes heruntergeladen wird, kann
+  diesen Download zwischen zwei Aktualisierungen verdecken.
 - Die Integration liest die Webseiten von Pinchflat 2025.9.26: Eine künftige
   Version, die sie ändert, kann ein Update der Integration erfordern.
 - Nicht mit Pinchflat, YouTube oder Google verbunden.

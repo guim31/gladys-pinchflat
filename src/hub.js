@@ -4,11 +4,13 @@
 // change, fires the scene events, and answers the scene action, the widget
 // and "Test the connection".
 //
-// Each reading gets /sources (counts of every source). A source page
-// (/sources/<id>: its 10 latest pending and downloaded videos) is read only
-// when its counts moved, when it was never read, or every 15 minutes while it
-// has pending videos (to see the failed downloads), at most 10 pages per
-// reading: a Pinchflat with 300 channels is not read 300 times a minute.
+// Each reading gets /sources (counts of the first 10 sources, by name), and
+// beyond 10 sources the pages of the media profiles (the list of all of
+// them). A source page (/sources/<id>: its 10 latest pending and downloaded
+// videos, and its counts) is read when the counts of a source of the first
+// page moved, when it was never read, every 15 minutes while it has pending
+// videos (to see the failed downloads), and in turn for the sources beyond the
+// first page; at most 10 pages per reading.
 //
 // Gladys never polls this device (should_poll: false): the scene events must
 // fire even when the device was not added, and a device created without
@@ -108,7 +110,7 @@ export class PinchflatHub {
   }
 
   emptyServer() {
-    return { reachable: null, version: null, sources: [] };
+    return { reachable: null, version: null, sourceIds: [] };
   }
 
   emptySaved(url) {
@@ -144,8 +146,8 @@ export class PinchflatHub {
       if (entry && typeof entry === 'object') {
         sources[id] = {
           name: typeof entry.name === 'string' ? entry.name : '',
-          downloaded: Number.isInteger(entry.downloaded) ? entry.downloaded : 0,
-          pending: Number.isInteger(entry.pending) ? entry.pending : 0,
+          downloaded: Number.isInteger(entry.downloaded) ? entry.downloaded : null,
+          pending: Number.isInteger(entry.pending) ? entry.pending : null,
           readAt: Number.isFinite(entry.readAt) ? entry.readAt : 0,
           readDownloaded: Number.isInteger(entry.readDownloaded) ? entry.readDownloaded : null,
           known: ids(entry.known),
@@ -304,7 +306,7 @@ export class PinchflatHub {
     const client = this.client;
     const before = this.widgetView();
     try {
-      const list = await client.sources();
+      const list = await this.listSources(client);
       if (client !== this.client) {
         return; // reconfigured meanwhile
       }
@@ -327,17 +329,47 @@ export class PinchflatHub {
     }
   }
 
-  async applySources(client, { version, sources }) {
+  /**
+   * Every source: the first page of /sources has the counts of 10 of them;
+   * beyond 10, the others come from the pages of the media profiles, without
+   * counts (their own page gives them).
+   */
+  async listSources(client) {
+    const list = await client.sources();
+    if (list.complete) {
+      return { ...list, all: list.sources };
+    }
+    try {
+      const all = await client.allSources();
+      this.resolved('profiles', 'Pinchflat: the media profiles are read again');
+      return { ...list, all };
+    } catch (err) {
+      if (!err.kind) {
+        throw err;
+      }
+      this.problem('profiles', `Pinchflat: media profiles not read: ${err.message}`);
+      // The sources seen before stay; none is taken for deleted.
+      const all = new Map(
+        Object.entries(this.saved.sources).map(([id, entry]) => [id, { id, name: entry.name }]),
+      );
+      for (const source of list.sources) {
+        all.set(source.id, source);
+      }
+      return { ...list, all: [...all.values()], complete: false, partial: true };
+    }
+  }
+
+  async applySources(client, { version, sources, all, partial = false }) {
     const previous = this.server;
     if (this.error) {
       logger.info(`Pinchflat ${this.config.url}: connection restored`);
     } else if (previous.reachable === null) {
       logger.info(
-        `Pinchflat ${this.config.url}: connected, version ${version ?? 'unknown'}, ${sources.length} source(s)`,
+        `Pinchflat ${this.config.url}: connected, version ${version ?? 'unknown'}, ${all.length} source(s)`,
       );
     }
     this.error = null;
-    this.server = { reachable: true, version, sources };
+    this.server = { reachable: true, version, sourceIds: all.map((source) => source.id) };
 
     const now = this.now();
     const saved = this.saved;
@@ -347,30 +379,39 @@ export class PinchflatHub {
     }
 
     // Counts first: the videos of today, and which source pages are due.
+    const counted = new Map(sources.map((source) => [source.id, source]));
     const due = [];
-    const listed = new Set();
-    for (const source of sources) {
-      listed.add(source.id);
-      const entry = saved.sources[source.id];
+    for (const { id, name } of all) {
+      const source = counted.get(id);
+      const entry = saved.sources[id];
       if (!entry) {
-        saved.sources[source.id] = {
-          name: source.name,
-          downloaded: source.downloaded,
-          pending: source.pending,
+        saved.sources[id] = {
+          name,
+          downloaded: source ? source.downloaded : null,
+          pending: source ? source.pending : null,
           readAt: 0,
           readDownloaded: null,
           known: [],
           failed: [],
           errors: 0,
         };
-        due.push({ source, priority: 1 });
+        due.push({ id, counted: Boolean(source), priority: 1 });
         continue;
       }
-      if (source.downloaded > entry.downloaded) {
+      entry.name = name;
+      if (!source) {
+        // Beyond the first page of /sources: its own page, in turn.
+        const priority = entry.readDownloaded === null ? 1 : 3;
+        due.push({ id, counted: false, priority, at: entry.readAt });
+        continue;
+      }
+      if (entry.downloaded !== null && source.downloaded > entry.downloaded) {
         saved.today.count += source.downloaded - entry.downloaded;
       }
-      const moved = source.downloaded > entry.downloaded || source.pending !== entry.pending;
-      entry.name = source.name;
+      const moved =
+        source.downloaded !== entry.readDownloaded ||
+        source.downloaded !== entry.downloaded ||
+        source.pending !== entry.pending;
       entry.downloaded = source.downloaded;
       entry.pending = source.pending;
       if (source.pending === 0) {
@@ -378,28 +419,33 @@ export class PinchflatHub {
         entry.failed = [];
         entry.errors = 0;
       }
-      if (!entry.readAt || entry.readDownloaded === null) {
-        due.push({ source, priority: 1 });
+      if (entry.readDownloaded === null) {
+        due.push({ id, counted: true, priority: 1 });
       } else if (moved) {
-        due.push({ source, priority: 0 });
+        due.push({ id, counted: true, priority: 0 });
       } else if (source.pending > 0 && now - entry.readAt >= this.timings.detailMs) {
-        due.push({ source, priority: 2, at: entry.readAt });
+        due.push({ id, counted: true, priority: 2, at: entry.readAt });
       }
     }
-    for (const id of Object.keys(saved.sources)) {
-      if (!listed.has(id)) {
-        delete saved.sources[id]; // deleted in Pinchflat
+    if (!partial) {
+      const listed = new Set(this.server.sourceIds);
+      for (const id of Object.keys(saved.sources)) {
+        if (!listed.has(id)) {
+          delete saved.sources[id]; // deleted in Pinchflat
+        }
       }
     }
 
-    // Source pages: the ones that moved first, then the new ones, then the oldest read.
+    // Source pages: the ones that moved first, then the new ones, then the
+    // pending ones to check, then the ones beyond the first page, oldest read first.
     due.sort((a, b) => a.priority - b.priority || (a.at ?? 0) - (b.at ?? 0));
     const events = { downloaded: [], failed: [] };
-    for (const { source } of due.slice(0, this.timings.maxDetailsPerRead)) {
+    for (const { id, counted: isCounted } of due.slice(0, this.timings.maxDetailsPerRead)) {
+      const entry = saved.sources[id];
       let detail;
       try {
-        detail = await client.source(source.id);
-        this.resolved(`source:${source.id}`);
+        detail = await client.source(id);
+        this.resolved(`source:${id}`);
       } catch (err) {
         if (!err.kind) {
           throw err;
@@ -407,15 +453,21 @@ export class PinchflatHub {
         if (client !== this.client) {
           return;
         }
-        this.problem(`source:${source.id}`, `Source ${source.name} not read: ${err.message}`);
+        this.problem(`source:${id}`, `Source ${entry.name} not read: ${err.message}`);
         continue;
       }
       if (client !== this.client) {
         return;
       }
-      this.applySource(client, source, detail, events, now);
+      this.applySource(client, id, isCounted, detail, events, now);
     }
 
+    // On disk before the events: a crash in between announces nothing twice.
+    this.store.save(saved);
+    await this.store.flush();
+    if (client !== this.client) {
+      return;
+    }
     const max = this.timings.maxEventsPerRead;
     for (const video of events.downloaded.slice(-max)) {
       logger.debug(`Pinchflat: downloaded "${video.title}" (${video.source})`);
@@ -436,16 +488,24 @@ export class PinchflatHub {
         url: video.url,
       });
     }
-    this.store.save(saved);
   }
 
   /** Apply one source page: new downloads, new failures, recent list. */
-  applySource(client, source, detail, events, now) {
-    const entry = this.saved.sources[source.id];
+  applySource(client, id, counted, detail, events, now) {
+    const entry = this.saved.sources[id];
     const firstRead = entry.readDownloaded === null;
     const known = new Set(entry.known);
     const failed = new Set(entry.failed);
-    const name = source.name;
+    const name = entry.name;
+
+    if (!counted) {
+      // Not on the first page of /sources: the page of the source gives the counts.
+      if (!firstRead && entry.downloaded !== null && detail.downloaded.total > entry.downloaded) {
+        this.saved.today.count += detail.downloaded.total - entry.downloaded;
+      }
+      entry.downloaded = detail.downloaded.total;
+      entry.pending = detail.pending.total;
+    }
 
     const downloaded = detail.downloaded.items;
     const fresh = downloaded.filter((item) => !known.has(item.id));
@@ -458,11 +518,11 @@ export class PinchflatHub {
       for (const item of announced) {
         const video = {
           id: item.id,
-          sourceId: source.id,
+          sourceId: id,
           source: name,
           title: item.title,
           uploadDate: item.uploadDate,
-          url: client.mediaUrl(source.id, item.id),
+          url: client.mediaUrl(id, item.id),
           at: now,
         };
         events.downloaded.push(video);
@@ -473,7 +533,7 @@ export class PinchflatHub {
       for (const item of downloaded) {
         this.addRecent({
           id: item.id,
-          sourceId: source.id,
+          sourceId: id,
           source: name,
           title: item.title,
           uploadDate: item.uploadDate,
@@ -485,10 +545,10 @@ export class PinchflatHub {
       0,
       KNOWN_PER_SOURCE,
     );
-    // The counts of /sources stay the reference of the counter of the day.
     entry.readDownloaded = detail.downloaded.total;
 
-    const errored = detail.pending.items.filter((item) => item.error);
+    const pending = detail.pending.items;
+    const errored = pending.filter((item) => item.error);
     if (!firstRead) {
       for (const item of errored) {
         if (!failed.has(item.id)) {
@@ -496,12 +556,17 @@ export class PinchflatHub {
             source: name,
             title: item.title,
             error: item.error,
-            url: client.mediaUrl(source.id, item.id),
+            url: client.mediaUrl(id, item.id),
           });
         }
       }
     }
-    entry.failed = errored.map((item) => item.id);
+    // A failure stays known while its video is pending, even when newer
+    // videos push it off the first page: it is not announced again later.
+    const shown = new Set(pending.map((item) => item.id));
+    const kept =
+      detail.pending.total > 0 ? entry.failed.filter((failedId) => !shown.has(failedId)) : [];
+    entry.failed = [...errored.map((item) => item.id), ...kept].slice(0, KNOWN_PER_SOURCE);
     entry.errors = errored.length;
     entry.readAt = now;
   }
@@ -541,16 +606,14 @@ export class PinchflatHub {
   // --- Figures ------------------------------------------------------------------
 
   totals() {
-    const sources = this.server.sources ?? [];
+    const ids = this.server.sourceIds ?? [];
+    const entries = ids.map((id) => this.saved.sources[id]).filter(Boolean);
     const today = this.saved.today.date === localDate(this.now()) ? this.saved.today.count : 0;
     return {
-      sources: sources.length,
-      pending: sources.reduce((sum, source) => sum + source.pending, 0),
-      downloaded: sources.reduce((sum, source) => sum + source.downloaded, 0),
-      errors: sources.reduce(
-        (sum, source) => sum + (this.saved.sources[source.id]?.errors ?? 0),
-        0,
-      ),
+      sources: ids.length,
+      pending: entries.reduce((sum, entry) => sum + (entry.pending ?? 0), 0),
+      downloaded: entries.reduce((sum, entry) => sum + (entry.downloaded ?? 0), 0),
+      errors: entries.reduce((sum, entry) => sum + entry.errors, 0),
       downloadedToday: today,
     };
   }

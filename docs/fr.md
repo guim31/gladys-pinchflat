@@ -132,9 +132,14 @@ l'ajout d'une source) n'est pas annoncé.
 - Un téléchargement en erreur est vu à la lecture suivante de sa source : dans
   les 15 minutes. Seules les 10 vidéos en attente les plus récentes de chaque
   source sont examinées.
-- 10 pages de sources au plus sont lues par rafraîchissement : avec beaucoup de
-  sources, les premières lectures prennent quelques rafraîchissements, et une
-  rafale de téléchargements est annoncée 10 par 10.
+- 10 pages de sources au plus sont lues par rafraîchissement. Au-delà de 10
+  sources, Pinchflat n'en liste que 10 sur sa page des sources : les autres
+  sont lues à tour de rôle (10 par rafraîchissement), leurs nouvelles peuvent
+  donc attendre quelques rafraîchissements.
+- 10 événements de chaque sorte au plus par rafraîchissement : au-delà (une
+  rafale de téléchargements), les vidéos sont comptées, pas annoncées. Une
+  vidéo supprimée pendant qu'une autre se télécharge, entre deux
+  rafraîchissements, peut masquer ce téléchargement.
 - L'intégration lit les pages web de Pinchflat 2025.9.26 : une future version
   qui les changerait pourrait demander une mise à jour de l'intégration.
 - Sans lien avec Pinchflat, YouTube ou Google.

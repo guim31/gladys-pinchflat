@@ -51,12 +51,15 @@ port, which the sandbox of Gladys does not open. So the integration reads the
 pages of the web interface, with plain GET requests, at the chosen interval (2
 minutes by default):
 
-- `/sources`: every source with its counts of pending and downloaded videos,
-  and the version of Pinchflat;
-- `/sources/<id>`, only when the counts of the source moved, when it was never
-  read, or every 15 minutes while it has pending videos: the 10 latest pending
-  videos (with the download errors) and the 10 latest downloaded, at most 10
-  pages per reading.
+- `/sources`: the first 10 sources (the table is paginated through the
+  LiveView websocket only) with their counts, and the version of Pinchflat;
+- beyond 10 sources, `/media_profiles` and `/media_profiles/<id>`: the list of
+  every source;
+- `/sources/<id>`: the 10 latest pending videos (with the download errors), the
+  10 latest downloaded, and the counts of the source. Read when the counts of a
+  source of the first page moved, when it was never read, every 15 minutes
+  while it has pending videos, and in turn for the sources beyond the first
+  page; at most 10 pages per reading.
 
 Phoenix LiveView renders these tables on the server at the first request, so the
 HTML holds the data. The ids of the videos already seen are kept under `/data`:

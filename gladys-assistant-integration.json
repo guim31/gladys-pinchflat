@@ -409,7 +409,7 @@
         "de": "Ein Satz für eine Nachricht oder Sprachansage: Videos des Tages, die neuesten, ausstehend, Fehler.",
         "es": "Una frase para un mensaje o un aviso de voz: vídeos del día, los últimos, pendientes, errores."
       },
-      "timeout_seconds": 60,
+      "timeout_seconds": 120,
       "fields": [
         {
           "key": "count",

@@ -122,9 +122,12 @@ is not announced.
 - A failed download is seen at the next reading of its source: within 15
   minutes. Only the 10 most recent pending videos of each source are checked
   for errors.
-- At most 10 source pages are read per refresh: with many sources, the first
-  readings take a few refreshes, and a burst of downloads is announced 10 at a
-  time.
+- At most 10 source pages are read per refresh. Beyond 10 sources, Pinchflat
+  lists only 10 on its sources page: the others are read in turn (10 per
+  refresh), so their news can wait a few refreshes.
+- At most 10 events of each kind per refresh: beyond (a burst of downloads),
+  the videos are counted, not announced. A video deleted while another one is
+  downloaded, between two refreshes, can hide that download.
 - The integration reads the web pages of Pinchflat 2025.9.26: a future version
   that changes them may need an update of the integration.
 - Not affiliated with Pinchflat, YouTube or Google.

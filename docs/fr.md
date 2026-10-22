@@ -1,67 +1,145 @@
-# Template de démonstration
+# Pinchflat
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Retrouvez votre serveur [Pinchflat](https://github.com/kieraneglin/pinchflat)
+(le téléchargeur auto-hébergé de chaînes et de playlists YouTube, basé sur
+yt-dlp) dans Gladys, sur votre réseau local : les vidéos téléchargées
+aujourd'hui, la file d'attente, les téléchargements en erreur, les dernières
+vidéos sur un tableau de bord, et des scènes qui réagissent quand une nouvelle
+vidéo arrive ou quand un téléchargement échoue.
 
-## Ce que vous obtenez
+L'intégration a été testée avec un vrai Pinchflat 2025.9.26 (l'image Docker
+officielle, téléchargeant une vraie vidéo), pas encore dans une vraie
+installation de Gladys : vos retours sont les bienvenus sur le
+[forum Gladys](https://community.gladysassistant.com) ou dans les
+[issues](https://github.com/guim31/gladys-pinchflat/issues).
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+## Ce qu'il faut
 
-## Configuration
+- Gladys Assistant 5.1.0 ou plus récent.
+- Un serveur **Pinchflat**, joignable depuis Gladys (même réseau), sur le port
+  de son interface web (`8945` par défaut).
+- Si l'interface demande un mot de passe (`BASIC_AUTH_USERNAME` et
+  `BASIC_AUTH_PASSWORD` de Pinchflat), cet identifiant et ce mot de passe.
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+## Installation
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+1. Installez l'intégration depuis le catalogue de Gladys.
+2. Dans **Configuration**, saisissez l'**Adresse** de Pinchflat (par exemple
+   `192.168.1.2:8945` ; sans port, `8945` est utilisé) et, si l'interface est
+   protégée, l'**Identifiant** et le **Mot de passe**.
+3. Enregistrez, puis cliquez sur **Tester la connexion** : le message sous le
+   bouton donne la version de Pinchflat, les sources, les vidéos en attente et
+   les erreurs.
+4. Ouvrez l'onglet **Découverte** : un appareil pour le serveur. Cliquez sur
+   **Ajouter**, choisissez une pièce et enregistrez.
 
-## Actions
+Options :
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+- **Intervalle de rafraîchissement** : de 1 à 10 minutes (2 minutes par
+  défaut).
+- **Langue des noms de fonctionnalités** : les noms donnés aux fonctionnalités à
+  l'ajout de l'appareil (français par défaut), et la langue de la phrase de
+  l'action de scène.
 
-## Scènes
+Pinchflat n'a pas d'API : l'intégration lit les pages de son interface web (la
+liste des sources, et la page d'une source), exactement comme un navigateur.
+Elle n'envoie jamais de formulaire et ne modifie jamais rien dans Pinchflat.
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+## L'appareil
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+Un appareil, **Pinchflat** suivi de l'adresse du serveur :
+
+| Fonctionnalité             | Ce qu'elle donne                                           |
+| -------------------------- | ---------------------------------------------------------- |
+| En ligne                   | 1 quand Pinchflat répond, 0 sinon                          |
+| Téléchargées aujourd'hui   | vidéos téléchargées depuis minuit (heure locale de Gladys) |
+| Vidéos en attente          | vidéos à télécharger, toutes sources confondues            |
+| Vidéos en erreur           | vidéos en attente dont le dernier téléchargement a échoué  |
+| Sources                    | chaînes et playlists suivies                               |
+| Vidéos téléchargées        | vidéos sur le disque, toutes sources confondues            |
+| Dernière vidéo téléchargée | son titre et sa source, en texte                           |
+
+Les chiffres bougent à chaque lecture. **Vidéos en erreur** compte les erreurs
+affichées dans la première page des vidéos en attente de chaque source (ses 10
+mises en ligne les plus récentes).
 
 ## Tableau de bord
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Le widget **Vidéos Pinchflat** affiche trois tuiles (téléchargées aujourd'hui,
+en attente, en erreur) et la liste des dernières vidéos téléchargées : titre,
+source et date. Ajoutez-le depuis l'éditeur du tableau de bord ; il n'a aucun
+réglage et fonctionne avant même l'ajout de l'appareil.
+
+## Scènes
+
+### Déclencheurs
+
+- **Vidéo Pinchflat téléchargée** : une nouvelle vidéo d'une source vient d'être
+  téléchargée. Filtre : **Source** (le nom de la chaîne ou de la playlist,
+  exactement comme Pinchflat l'affiche ; vide : n'importe laquelle).
+  Informations transmises aux actions : la source, le titre de la vidéo, sa date
+  de mise en ligne sur YouTube, la page de la vidéo dans Pinchflat et le nombre
+  de vidéos téléchargées aujourd'hui.
+- **Téléchargement Pinchflat en erreur** : le téléchargement d'une vidéo en
+  attente a échoué (vidéo indisponible, réservée aux membres, bloquée, erreur de
+  yt-dlp). Même filtre. Informations : la source, le titre, le message d'erreur
+  et la page de la vidéo.
+
+Chaque vidéo est annoncée une seule fois, même après un redémarrage de
+l'intégration. Ce que Pinchflat avait déjà au démarrage de l'intégration (ou à
+l'ajout d'une source) n'est pas annoncé.
+
+### Actions
+
+- **Lire les dernières vidéos Pinchflat** : lit Pinchflat maintenant et donne
+  une phrase pour un message ou une annonce vocale, du type « Pinchflat : 2
+  vidéos téléchargées aujourd'hui ; dernières : « … » (…), « … » (…). 4 en
+  attente, 1 en erreur. », avec les chiffres à part (téléchargées aujourd'hui,
+  en attente, en erreur, titre et source de la dernière vidéo). Option : le
+  nombre de vidéos citées dans la phrase (3 par défaut).
+
+### Idées de scènes
+
+- Quand une vidéo de votre chaîne préférée est téléchargée, envoyez-vous un
+  message : « Nouveau sur le serveur multimédia : {titre} ({source}) ».
+- À 19 h, lisez les dernières vidéos Pinchflat et annoncez la phrase sur
+  l'enceinte du salon.
+- Quand un téléchargement échoue, envoyez le message d'erreur, pour mettre à
+  jour les cookies de yt-dlp ou vérifier la vidéo.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **« Pinchflat ne répond pas »** : vérifiez l'adresse et le port (`8945`), et
+  que Gladys peut joindre le serveur (même réseau, pare-feu).
+- **« Identifiant ou mot de passe refusé ou manquant »** : l'interface est
+  protégée ; saisissez les `BASIC_AUTH_USERNAME` et `BASIC_AUTH_PASSWORD` de
+  Pinchflat.
+- **« L'adresse redirige »** : un proxy inverse renvoie vers une page de
+  connexion ou vers HTTPS ; saisissez l'adresse directe de Pinchflat sur votre
+  réseau.
+- **« Aucun Pinchflat à cette adresse »** : un autre service répond sur ce port.
+- Pas d'événement pour une vidéo : Pinchflat range les vidéos téléchargées par
+  date de mise en ligne ; une vieille vidéo téléchargée tard (le rattrapage
+  d'une nouvelle source) est comptée dans « Téléchargées aujourd'hui », sans
+  événement de scène.
+- Plus de détails : réglez le `LOG_LEVEL` de l'intégration sur `debug` et
+  ouvrez ses logs.
+
+## Limites
+
+- Lecture seule : l'intégration ne peut ni ajouter une source, ni lancer ou
+  relancer un téléchargement (Pinchflat n'a pas d'API pour cela).
+- Un téléchargement en erreur est vu à la lecture suivante de sa source : dans
+  les 15 minutes. Seules les 10 vidéos en attente les plus récentes de chaque
+  source sont examinées.
+- 10 pages de sources au plus sont lues par rafraîchissement. Au-delà de 10
+  sources, Pinchflat n'en liste que 10 sur sa page des sources : les autres
+  sont lues à tour de rôle (10 par rafraîchissement), leurs nouvelles peuvent
+  donc attendre quelques rafraîchissements.
+- 10 événements de chaque sorte au plus par rafraîchissement : au-delà (une
+  rafale de téléchargements), les vidéos sont comptées, pas annoncées. Une
+  vidéo supprimée pendant qu'une autre se télécharge, entre deux
+  rafraîchissements, peut masquer ce téléchargement.
+- L'intégration lit les pages web de Pinchflat 2025.9.26 : une future version
+  qui les changerait pourrait demander une mise à jour de l'intégration.
+- Sans lien avec Pinchflat, YouTube ou Google.

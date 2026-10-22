@@ -1,45 +1,92 @@
 // -----------------------------------------------------------------------------
-// Integration configuration.
+// Integration configuration: defaults (they mirror the `default` values of the
+// manifest `config_schema`, see test/manifest.test.js) and normalization, so
+// the rest of the code never deals with strings, blanks or `undefined`.
 //
-// The configuration is filled in by the user in Gladys, from the `config_schema`
-// declared in `gladys-assistant-integration.json`. The SDK fetches it for you
-// (`gladys.getConfig()`) and notifies you of every change through
-// `gladys.onConfigUpdated()`.
-//
-// This module only provides defaults and normalizes the received object, so the
-// rest of the code never has to deal with `undefined`.
+// One Pinchflat server: its address (port 8945 by default), the user name and
+// password when its interface is protected (basic authentication), the
+// refresh interval and the language of the feature names and sentences.
 // -----------------------------------------------------------------------------
 
-// Defaults: they MUST stay consistent with the `default` values declared in the
-// `config_schema` of the manifest.
+export const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+// Refresh intervals offered in the configuration, in seconds.
+export const POLL_INTERVALS = ['60', '120', '300', '600'];
+
+export const DEFAULT_PORT = 8945;
+
 export const DEFAULT_CONFIG = {
-  latitude: 48.8566, // Paris
-  longitude: 2.3522,
-  unit: 'celsius', // 'celsius' | 'fahrenheit'
-  // Seconds between two reads of the polled sensors. Gladys polls at most once
-  // a minute: slower intervals are applied by skipping polls (see
-  // createPoller in src/devices/index.js).
-  poll_frequency: 300,
-  // Reserved key (NOT in config_schema): because the manifest declares both
-  // 'local' and 'cloud' in its `transports` field, Gladys shows a standard
-  // "Prefer the local connection" toggle and sends the user's choice here.
-  // Read-only for the integration; defaults to true.
-  GLADYS_PREFER_LOCAL: true,
+  url: '',
+  username: '',
+  password: '',
+  poll_interval: '120',
+  language: 'fr',
 };
 
 /**
- * Merge the user config with the defaults.
- * @param {Record<string, unknown>} raw config returned by the SDK
+ * Parse the address typed by the user into a base URL: a bare host or IP
+ * (`192.0.2.10`, port 8945 added), or the URL copied from the browser, with
+ * the base path of a server behind a reverse proxy. HTTP by default; the
+ * query, the fragment, a page of the interface and a trailing slash dropped.
+ * @param {unknown} raw
+ * @returns {string|null} `http(s)://host[:port][/base]`, null when unusable
+ */
+export function parseServerUrl(raw) {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const text = raw.trim();
+  if (!text) {
+    return null;
+  }
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text);
+  let url;
+  try {
+    url = new URL(hasScheme ? text : `http://${text}`);
+  } catch {
+    return null;
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) {
+    return null;
+  }
+  // Credentials in the address would end up in the logs and the device params.
+  if (url.username || url.password) {
+    return null;
+  }
+  // A bare host means the default port of Pinchflat, not 80.
+  if (!hasScheme && !url.port) {
+    url.port = String(DEFAULT_PORT);
+  }
+  // A page of the interface copied from the browser (/sources/12, /settings…).
+  const path = url.pathname
+    .replace(/\/(sources|media_profiles|settings|search|app_info|dev)(\/.*)?$/i, '')
+    .replace(/\/+$/, '');
+  return `${url.origin}${path}`;
+}
+
+/** Host part shown to the user (no scheme). */
+export const hostOf = (url) => url.replace(/^https?:\/\//, '');
+
+/**
+ * @param {Record<string, unknown>} raw the configuration returned by the SDK
  */
 export function normalizeConfig(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const text = (key) => (typeof source[key] === 'string' ? source[key].trim() : '');
+  const typed = text('url');
+  const url = parseServerUrl(typed);
+  const interval =
+    source.poll_interval === undefined || source.poll_interval === null
+      ? ''
+      : String(source.poll_interval);
   return {
-    ...DEFAULT_CONFIG,
-    ...raw,
-    // Force the types: config may arrive as strings from a form.
-    latitude: Number(raw.latitude ?? DEFAULT_CONFIG.latitude),
-    longitude: Number(raw.longitude ?? DEFAULT_CONFIG.longitude),
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
-    // The preference is a boolean; anything but an explicit false means true.
-    GLADYS_PREFER_LOCAL: raw.GLADYS_PREFER_LOCAL !== false,
+    url,
+    invalidUrl: Boolean(typed) && !url,
+    username: text('username'),
+    // A password may start or end with a space: kept as typed.
+    password: typeof source.password === 'string' ? source.password : '',
+    pollIntervalMs:
+      Number(POLL_INTERVALS.includes(interval) ? interval : DEFAULT_CONFIG.poll_interval) * 1000,
+    language: LANGUAGES.includes(source.language) ? source.language : DEFAULT_CONFIG.language,
   };
 }

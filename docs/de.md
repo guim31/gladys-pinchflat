@@ -1,0 +1,140 @@
+# Pinchflat
+
+Hol deinen [Pinchflat](https://github.com/kieraneglin/pinchflat)-Server (den
+selbst gehosteten Downloader für YouTube-Kanäle und -Playlists, auf Basis von
+yt-dlp) über dein lokales Netzwerk in Gladys: die heute heruntergeladenen
+Videos, die Warteschlange, die fehlgeschlagenen Downloads, die neuesten Videos
+auf einem Dashboard und Szenen, die reagieren, wenn ein neues Video ankommt oder
+ein Download fehlschlägt.
+
+Die Integration wurde mit einem echten Pinchflat 2025.9.26 getestet (das
+offizielle Docker-Image, das ein echtes Video herunterlädt), noch nicht in einer
+echten Gladys-Installation: Rückmeldungen sind im
+[Gladys-Forum](https://community.gladysassistant.com) oder in den
+[Issues](https://github.com/guim31/gladys-pinchflat/issues) willkommen.
+
+## Was du brauchst
+
+- Gladys Assistant 5.1.0 oder neuer.
+- Einen **Pinchflat**-Server, von Gladys aus erreichbar (gleiches Netzwerk), auf
+  dem Port seiner Weboberfläche (standardmäßig `8945`).
+- Wenn die Oberfläche ein Passwort verlangt (`BASIC_AUTH_USERNAME` und
+  `BASIC_AUTH_PASSWORD` von Pinchflat), diesen Benutzernamen und dieses
+  Passwort.
+
+## Einrichtung
+
+1. Installiere die Integration aus dem Gladys-Katalog.
+2. Gib unter **Konfiguration** die **Adresse** von Pinchflat ein (zum Beispiel
+   `192.168.1.2:8945`; ohne Port wird `8945` verwendet) und, wenn die Oberfläche
+   geschützt ist, den **Benutzernamen** und das **Passwort**.
+3. Speichere und klicke auf **Verbindung testen**: Die Meldung unter der
+   Schaltfläche nennt die Version von Pinchflat, die Quellen, die ausstehenden
+   Videos und die Fehler.
+4. Öffne den Tab **Entdecken**: ein Gerät für den Server. Klicke auf
+   **Hinzufügen**, wähle einen Raum und speichere.
+
+Optionen:
+
+- **Aktualisierungsintervall**: 1 bis 10 Minuten (standardmäßig 2 Minuten).
+- **Sprache der Funktionsnamen**: die Namen, die die Funktionen beim Hinzufügen
+  des Geräts erhalten (standardmäßig Französisch), und die Sprache des Satzes
+  der Szenenaktion.
+
+Pinchflat hat keine API: Die Integration liest die Seiten seiner Weboberfläche
+(die Liste der Quellen und die Seite einer Quelle), genau wie ein Browser. Dabei sendet die Integration nie ein Formular ab und ändert nie etwas in Pinchflat.
+
+## Das Gerät
+
+Ein Gerät, **Pinchflat** gefolgt von der Adresse des Servers:
+
+| Funktion                        | Was sie liefert                                                |
+| ------------------------------- | -------------------------------------------------------------- |
+| Online                          | 1, wenn Pinchflat antwortet, sonst 0                           |
+| Heute heruntergeladen           | seit Mitternacht heruntergeladene Videos (Ortszeit von Gladys) |
+| Ausstehende Videos              | Videos, die auf den Download warten, alle Quellen zusammen     |
+| Videos mit Fehler               | ausstehende Videos, deren letzter Download fehlgeschlagen ist  |
+| Quellen                         | verfolgte Kanäle und Playlists                                 |
+| Heruntergeladene Videos         | Videos auf der Festplatte, alle Quellen zusammen               |
+| Zuletzt heruntergeladenes Video | Titel und Quelle, als Text                                     |
+
+Die Zahlen ändern sich bei jeder Abfrage. **Videos mit Fehler** zählt die Fehler
+auf der ersten Seite der ausstehenden Videos jeder Quelle (ihre 10 neuesten
+Uploads).
+
+## Dashboard
+
+Das Widget **Pinchflat-Videos** zeigt drei Kacheln (heute heruntergeladen,
+ausstehend, mit Fehler) und die Liste der zuletzt heruntergeladenen Videos:
+Titel, Quelle und Datum. Füge es im Dashboard-Editor hinzu; es braucht keine
+Einstellung und funktioniert schon, bevor das Gerät hinzugefügt ist.
+
+## Szenen
+
+### Auslöser
+
+- **Pinchflat-Video heruntergeladen**: Ein neues Video einer Quelle wurde gerade
+  heruntergeladen. Filter: **Quelle** (der Name des Kanals oder der Playlist,
+  genau wie Pinchflat ihn anzeigt; leer: beliebig). An die Aktionen
+  weitergegebene Informationen: die Quelle, der Titel des Videos, sein
+  Upload-Datum auf YouTube, die Seite des Videos in Pinchflat und die Zahl der
+  heute heruntergeladenen Videos.
+- **Pinchflat-Download fehlgeschlagen**: Der Download eines ausstehenden Videos
+  ist fehlgeschlagen (nicht verfügbar, nur für Mitglieder, blockiert,
+  yt-dlp-Fehler). Gleicher Filter. Informationen: die Quelle, der Titel, die
+  Fehlermeldung und die Seite des Videos.
+
+Jedes Video wird nur einmal gemeldet, auch nach einem Neustart der Integration.
+Was Pinchflat beim Start der Integration (oder beim Hinzufügen einer Quelle)
+schon hatte, wird nicht gemeldet.
+
+### Aktionen
+
+- **Neueste Pinchflat-Videos lesen**: liest Pinchflat sofort und liefert einen
+  Satz für eine Nachricht oder eine Sprachansage, etwa „Pinchflat: 2 Videos
+  heute heruntergeladen; zuletzt: „…“ (…), „…“ (…). 4 ausstehend, 1 mit
+  Fehler.“, mit den Zahlen einzeln (heute heruntergeladen, ausstehend, mit
+  Fehler, Titel und Quelle des neuesten Videos). Option: die Zahl der im Satz
+  genannten Videos (standardmäßig 3).
+
+### Szenen-Ideen
+
+- Wenn ein Video deines Lieblingskanals heruntergeladen ist, schick dir eine
+  Nachricht: „Neu auf dem Medienserver: {Titel} ({Quelle})“.
+- Um 19 Uhr die neuesten Pinchflat-Videos lesen und den Satz über den
+  Lautsprecher im Wohnzimmer ansagen.
+- Wenn ein Download fehlschlägt, die Fehlermeldung schicken, um die Cookies von
+  yt-dlp zu erneuern oder das Video zu prüfen.
+
+## Fehlerbehebung
+
+- **„Pinchflat antwortet nicht“**: Prüfe die Adresse und den Port (`8945`) und
+  ob Gladys den Server erreicht (gleiches Netzwerk, Firewall).
+- **„Benutzername oder Passwort abgelehnt oder fehlend“**: Die Oberfläche ist
+  geschützt; gib `BASIC_AUTH_USERNAME` und `BASIC_AUTH_PASSWORD` von Pinchflat
+  ein.
+- **„Die Adresse leitet um“**: Ein Reverse Proxy leitet auf eine Anmeldeseite
+  oder auf HTTPS um; gib die direkte Adresse von Pinchflat in deinem Netzwerk
+  ein.
+- **„Kein Pinchflat unter dieser Adresse“**: Auf diesem Port antwortet ein
+  anderer Dienst.
+- Kein Ereignis für ein Video: Pinchflat sortiert die heruntergeladenen Videos
+  nach Upload-Datum; ein altes, spät heruntergeladenes Video (das Nachholen
+  einer neuen Quelle) wird bei „Heute heruntergeladen“ gezählt, ohne
+  Szenenereignis.
+- Mehr Details: Setze den `LOG_LEVEL` der Integration auf `debug` und öffne ihre
+  Protokolle.
+
+## Grenzen
+
+- Nur lesen: Die Integration kann keine Quelle hinzufügen und keinen Download
+  starten oder wiederholen (Pinchflat hat dafür keine API).
+- Ein fehlgeschlagener Download wird bei der nächsten Abfrage seiner Quelle
+  erkannt: innerhalb von 15 Minuten. Nur die 10 neuesten ausstehenden Videos
+  jeder Quelle werden auf Fehler geprüft.
+- Höchstens 10 Quellenseiten werden pro Aktualisierung gelesen: Bei vielen
+  Quellen dauern die ersten Abfragen einige Aktualisierungen, und eine Welle von
+  Downloads wird in Zehnergruppen gemeldet.
+- Die Integration liest die Webseiten von Pinchflat 2025.9.26: Eine künftige
+  Version, die sie ändert, kann ein Update der Integration erfordern.
+- Nicht mit Pinchflat, YouTube oder Google verbunden.

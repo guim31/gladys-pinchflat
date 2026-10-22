@@ -30,6 +30,17 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+The integration stores under `/data` only the address of the Pinchflat server
+read last, the names and counts of its sources, the ids of the videos already
+seen (downloaded, failed), the counter of the day and the titles of the latest
+videos. The user name and password of Pinchflat stay in the configuration of
+Gladys: they are sent to Pinchflat only, in the `Authorization` header (basic
+authentication: prefer HTTPS when Pinchflat is behind a reverse proxy), and
+never written to the logs. The integration reads the pages of Pinchflat with
+GET requests only, and keeps nothing else of them (paths, settings, tokens). It
+only talks to the address configured, over the local network; no cloud service,
+no inbound port.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and Pinchflat itself.

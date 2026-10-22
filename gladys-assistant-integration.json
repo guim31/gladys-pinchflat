@@ -1,177 +1,547 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Pinchflat",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Pinchflat in Gladys: new YouTube videos downloaded, queue, failed downloads, latest videos.",
+    "fr": "Pinchflat dans Gladys : nouvelles vidéos YouTube téléchargées, file d'attente, erreurs.",
+    "de": "Pinchflat in Gladys: neue YouTube-Videos, Warteschlange, fehlgeschlagene Downloads.",
+    "es": "Pinchflat en Gladys: nuevos vídeos de YouTube descargados, cola, descargas fallidas."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-pinchflat:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-pinchflat/main/cover.png",
+  "categories": ["multimedia"],
+  "transports": ["local"],
   "config_schema": [
     {
-      "key": "intro",
+      "key": "server",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Pinchflat server",
+        "fr": "Serveur Pinchflat",
+        "de": "Pinchflat-Server",
+        "es": "Servidor Pinchflat"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Address of the Pinchflat web interface. The integration only reads its pages: it never changes anything in Pinchflat.",
+        "fr": "Adresse de l'interface web de Pinchflat. L'intégration lit seulement ses pages : elle ne modifie jamais rien dans Pinchflat.",
+        "de": "Adresse der Pinchflat-Weboberfläche. Die Integration liest nur ihre Seiten und ändert nie etwas in Pinchflat.",
+        "es": "Dirección de la interfaz web de Pinchflat. La integración solo lee sus páginas: nunca modifica nada en Pinchflat."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/kieraneglin/pinchflat",
+          "label": {
+            "en": "Pinchflat on GitHub",
+            "fr": "Pinchflat sur GitHub",
+            "de": "Pinchflat auf GitHub",
+            "es": "Pinchflat en GitHub"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "url",
+      "type": "string",
+      "label": {
+        "en": "Address",
+        "fr": "Adresse",
+        "de": "Adresse",
+        "es": "Dirección"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
-    },
-    {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "IP address or name of the server, with the port of the web interface (8945 by default).",
+        "fr": "Adresse IP ou nom du serveur, avec le port de l'interface web (8945 par défaut).",
+        "de": "IP-Adresse oder Name des Servers, mit dem Port der Weboberfläche (standardmäßig 8945).",
+        "es": "Dirección IP o nombre del servidor, con el puerto de la interfaz web (8945 por defecto)."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
-    },
-    {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "placeholder": {
+        "en": "e.g. 192.168.1.2:8945",
+        "fr": "ex. 192.168.1.2:8945",
+        "de": "z. B. 192.168.1.2:8945",
+        "es": "p. ej. 192.168.1.2:8945"
+      },
       "required": false,
-      "default": "celsius",
+      "default": ""
+    },
+    {
+      "key": "username",
+      "type": "string",
+      "label": {
+        "en": "User name",
+        "fr": "Identifiant",
+        "de": "Benutzername",
+        "es": "Usuario"
+      },
+      "description": {
+        "en": "Only when the interface asks for a password (BASIC_AUTH_USERNAME of Pinchflat).",
+        "fr": "Seulement si l'interface demande un mot de passe (BASIC_AUTH_USERNAME de Pinchflat).",
+        "de": "Nur wenn die Oberfläche ein Passwort verlangt (BASIC_AUTH_USERNAME von Pinchflat).",
+        "es": "Solo si la interfaz pide una contraseña (BASIC_AUTH_USERNAME de Pinchflat)."
+      },
+      "required": false,
+      "default": ""
+    },
+    {
+      "key": "password",
+      "type": "secret",
+      "label": {
+        "en": "Password",
+        "fr": "Mot de passe",
+        "de": "Passwort",
+        "es": "Contraseña"
+      },
+      "description": {
+        "en": "BASIC_AUTH_PASSWORD of Pinchflat, with the user name above.",
+        "fr": "BASIC_AUTH_PASSWORD de Pinchflat, avec l'identifiant ci-dessus.",
+        "de": "BASIC_AUTH_PASSWORD von Pinchflat, mit dem Benutzernamen oben.",
+        "es": "BASIC_AUTH_PASSWORD de Pinchflat, con el usuario de arriba."
+      },
+      "required": false
+    },
+    {
+      "key": "poll_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often Pinchflat is read: new videos, queue, errors.",
+        "fr": "Fréquence de lecture de Pinchflat : nouvelles vidéos, file d'attente, erreurs.",
+        "de": "Wie oft Pinchflat gelesen wird: neue Videos, Warteschlange, Fehler.",
+        "es": "Con qué frecuencia se lee Pinchflat: vídeos nuevos, cola, errores."
+      },
+      "required": false,
+      "default": "120",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        },
+        {
+          "value": "600",
+          "label": {
+            "en": "10 minutes",
+            "fr": "10 minutes",
+            "de": "10 Minuten",
+            "es": "10 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the feature names",
+        "fr": "Langue des noms de fonctionnalités",
+        "de": "Sprache der Funktionsnamen",
+        "es": "Idioma de los nombres de funciones"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Names given to the features when the device is added, and the sentence of the scene action.",
+        "fr": "Noms donnés aux fonctionnalités à l'ajout de l'appareil, et phrase de l'action de scène.",
+        "de": "Namen der Funktionen beim Hinzufügen des Geräts und Satz der Szenenaktion.",
+        "es": "Nombres de las funciones al añadir el dispositivo y frase de la acción de escena."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
+      "description": {
+        "en": "Reads Pinchflat now and reports what it finds.",
+        "fr": "Lit Pinchflat maintenant et indique ce qu'il trouve.",
+        "de": "Liest Pinchflat sofort und meldet, was es findet.",
+        "es": "Lee Pinchflat ahora e indica lo que encuentra."
+      },
+      "timeout_seconds": 60
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "video_downloaded",
+      "label": {
+        "en": "Pinchflat video downloaded",
+        "fr": "Vidéo Pinchflat téléchargée",
+        "de": "Pinchflat-Video heruntergeladen",
+        "es": "Vídeo de Pinchflat descargado"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "A new video of a source has just been downloaded by Pinchflat.",
+        "fr": "Pinchflat vient de télécharger une nouvelle vidéo d'une source.",
+        "de": "Pinchflat hat gerade ein neues Video einer Quelle heruntergeladen.",
+        "es": "Pinchflat acaba de descargar un nuevo vídeo de una fuente."
       },
       "fields": [
         {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
+          "key": "source",
+          "type": "string",
+          "label": {
+            "en": "Source (empty: any)",
+            "fr": "Source (vide : n'importe laquelle)",
+            "de": "Quelle (leer: beliebig)",
+            "es": "Fuente (vacío: cualquiera)"
+          },
+          "description": {
+            "en": "Name of the channel or playlist exactly as Pinchflat shows it.",
+            "fr": "Nom de la chaîne ou de la playlist, exactement comme Pinchflat l'affiche.",
+            "de": "Name des Kanals oder der Playlist, genau wie Pinchflat ihn anzeigt.",
+            "es": "Nombre del canal o de la lista, exactamente como lo muestra Pinchflat."
+          }
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "source",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Source (channel or playlist)",
+            "fr": "Source (chaîne ou playlist)",
+            "de": "Quelle (Kanal oder Playlist)",
+            "es": "Fuente (canal o lista)"
+          }
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "label": {
+            "en": "Video title",
+            "fr": "Titre de la vidéo",
+            "de": "Titel des Videos",
+            "es": "Título del vídeo"
+          }
+        },
+        {
+          "key": "upload_date",
+          "type": "string",
+          "label": {
+            "en": "Upload date on YouTube",
+            "fr": "Date de mise en ligne sur YouTube",
+            "de": "Upload-Datum auf YouTube",
+            "es": "Fecha de subida a YouTube"
+          }
+        },
+        {
+          "key": "url",
+          "type": "string",
+          "label": {
+            "en": "Page of the video in Pinchflat",
+            "fr": "Page de la vidéo dans Pinchflat",
+            "de": "Seite des Videos in Pinchflat",
+            "es": "Página del vídeo en Pinchflat"
+          }
+        },
+        {
+          "key": "downloaded_today",
+          "type": "number",
+          "label": {
+            "en": "Videos downloaded today",
+            "fr": "Vidéos téléchargées aujourd'hui",
+            "de": "Heute heruntergeladene Videos",
+            "es": "Vídeos descargados hoy"
+          }
+        }
+      ]
+    },
+    {
+      "key": "download_failed",
+      "label": {
+        "en": "Pinchflat download failed",
+        "fr": "Téléchargement Pinchflat en erreur",
+        "de": "Pinchflat-Download fehlgeschlagen",
+        "es": "Descarga de Pinchflat fallida"
+      },
+      "description": {
+        "en": "The download of a pending video failed (video unavailable, blocked, yt-dlp error).",
+        "fr": "Le téléchargement d'une vidéo en attente a échoué (vidéo indisponible, bloquée, erreur de yt-dlp).",
+        "de": "Der Download eines ausstehenden Videos ist fehlgeschlagen (nicht verfügbar, blockiert, yt-dlp-Fehler).",
+        "es": "La descarga de un vídeo pendiente ha fallado (vídeo no disponible, bloqueado, error de yt-dlp)."
+      },
+      "fields": [
+        {
+          "key": "source",
+          "type": "string",
+          "label": {
+            "en": "Source (empty: any)",
+            "fr": "Source (vide : n'importe laquelle)",
+            "de": "Quelle (leer: beliebig)",
+            "es": "Fuente (vacío: cualquiera)"
+          },
+          "description": {
+            "en": "Name of the channel or playlist exactly as Pinchflat shows it.",
+            "fr": "Nom de la chaîne ou de la playlist, exactement comme Pinchflat l'affiche.",
+            "de": "Name des Kanals oder der Playlist, genau wie Pinchflat ihn anzeigt.",
+            "es": "Nombre del canal o de la lista, exactamente como lo muestra Pinchflat."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "source",
+          "type": "string",
+          "label": {
+            "en": "Source (channel or playlist)",
+            "fr": "Source (chaîne ou playlist)",
+            "de": "Quelle (Kanal oder Playlist)",
+            "es": "Fuente (canal o lista)"
+          }
+        },
+        {
+          "key": "title",
+          "type": "string",
+          "label": {
+            "en": "Video title",
+            "fr": "Titre de la vidéo",
+            "de": "Titel des Videos",
+            "es": "Título del vídeo"
+          }
+        },
+        {
+          "key": "error",
+          "type": "string",
+          "label": {
+            "en": "Error message (yt-dlp)",
+            "fr": "Message d'erreur (yt-dlp)",
+            "de": "Fehlermeldung (yt-dlp)",
+            "es": "Mensaje de error (yt-dlp)"
+          }
+        },
+        {
+          "key": "url",
+          "type": "string",
+          "label": {
+            "en": "Page of the video in Pinchflat",
+            "fr": "Page de la vidéo dans Pinchflat",
+            "de": "Seite des Videos in Pinchflat",
+            "es": "Página del vídeo en Pinchflat"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "read_latest",
+      "label": {
+        "en": "Read the latest Pinchflat videos",
+        "fr": "Lire les dernières vidéos Pinchflat",
+        "de": "Neueste Pinchflat-Videos lesen",
+        "es": "Leer los últimos vídeos de Pinchflat"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "A sentence for a message or a voice announcement: videos of the day, the latest ones, pending, errors.",
+        "fr": "Une phrase pour un message ou une annonce vocale : vidéos du jour, dernières vidéos, en attente, erreurs.",
+        "de": "Ein Satz für eine Nachricht oder Sprachansage: Videos des Tages, die neuesten, ausstehend, Fehler.",
+        "es": "Una frase para un mensaje o un aviso de voz: vídeos del día, los últimos, pendientes, errores."
+      },
+      "timeout_seconds": 60,
       "fields": [
         {
-          "key": "device",
+          "key": "count",
           "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "label": {
+            "en": "Videos named in the sentence",
+            "fr": "Vidéos citées dans la phrase",
+            "de": "Im Satz genannte Videos",
+            "es": "Vídeos citados en la frase"
+          },
+          "required": false,
+          "default": "3",
+          "options": [
+            {
+              "value": "1",
+              "label": {
+                "en": "1",
+                "fr": "1",
+                "de": "1",
+                "es": "1"
+              }
+            },
+            {
+              "value": "3",
+              "label": {
+                "en": "3",
+                "fr": "3",
+                "de": "3",
+                "es": "3"
+              }
+            },
+            {
+              "value": "5",
+              "label": {
+                "en": "5",
+                "fr": "5",
+                "de": "5",
+                "es": "5"
+              }
+            },
+            {
+              "value": "10",
+              "label": {
+                "en": "10",
+                "fr": "10",
+                "de": "10",
+                "es": "10"
+              }
+            }
+          ]
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "summary",
+          "type": "string",
+          "label": {
+            "en": "Sentence",
+            "fr": "Phrase",
+            "de": "Satz",
+            "es": "Frase"
+          }
+        },
+        {
+          "key": "downloaded_today",
+          "type": "number",
+          "label": {
+            "en": "Videos downloaded today",
+            "fr": "Vidéos téléchargées aujourd'hui",
+            "de": "Heute heruntergeladene Videos",
+            "es": "Vídeos descargados hoy"
+          }
+        },
+        {
+          "key": "pending",
+          "type": "number",
+          "label": {
+            "en": "Pending videos",
+            "fr": "Vidéos en attente",
+            "de": "Ausstehende Videos",
+            "es": "Vídeos pendientes"
+          }
+        },
+        {
+          "key": "errors",
+          "type": "number",
+          "label": {
+            "en": "Videos in error",
+            "fr": "Vidéos en erreur",
+            "de": "Videos mit Fehler",
+            "es": "Vídeos con error"
+          }
+        },
+        {
+          "key": "last_title",
+          "type": "string",
+          "label": {
+            "en": "Title of the last video",
+            "fr": "Titre de la dernière vidéo",
+            "de": "Titel des neuesten Videos",
+            "es": "Título del último vídeo"
+          }
+        },
+        {
+          "key": "last_source",
+          "type": "string",
+          "label": {
+            "en": "Source of the last video",
+            "fr": "Source de la dernière vidéo",
+            "de": "Quelle des neuesten Videos",
+            "es": "Fuente del último vídeo"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "latest_videos",
+      "label": {
+        "en": "Pinchflat videos",
+        "fr": "Vidéos Pinchflat",
+        "de": "Pinchflat-Videos",
+        "es": "Vídeos de Pinchflat"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "Latest videos downloaded, videos of the day, pending and in error.",
+        "fr": "Dernières vidéos téléchargées, vidéos du jour, en attente et en erreur.",
+        "de": "Neueste heruntergeladene Videos, Videos des Tages, ausstehend und mit Fehler.",
+        "es": "Últimos vídeos descargados, vídeos del día, pendientes y con error."
+      },
+      "icon": "youtube"
     }
   ]
 }

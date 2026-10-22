@@ -1,77 +1,65 @@
+// -----------------------------------------------------------------------------
+// The `latest_videos` widget: content valid for the core (budget, vocabulary),
+// in every language, before and after a download, and its messages.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { FakePinchflat, createWorld } from './helpers/world.js';
+import { videoItem } from '../src/widgets.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+async function world(t, options) {
+  const w = await createWorld(options);
+  t.after(() => w.app.stop());
+  return w;
+}
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
+const get = async (w, language = 'en') => {
+  const ack = await w.fake.widgetGet('latest_videos', { settings: {}, language });
+  assert.equal(ack.success, true, ack.error);
+  assert.deepEqual(validateWidgetContent(ack.data.content), [], JSON.stringify(ack.data));
+  return ack.data.content.components;
+};
 
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
-
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
+test('the widget shows the figures and the latest videos, in every language', async (t) => {
+  const w = await world(t);
+  w.pinchflat.download(w.pinchflat.addVideo(2, 'x'.repeat(80), { uploadDate: '2026-10-22' }));
+  await w.hub.pollAll();
+  for (const language of ['en', 'fr', 'de', 'es']) {
+    const components = await get(w, language);
+    assert.ok(components.length <= 8);
+    assert.ok(components.filter((c) => c.type === 'text').length <= 2);
+    assert.deepEqual(
+      components.filter((c) => c.type === 'value').map((c) => c.value),
+      [1, 2, 1],
     );
-  } finally {
-    simulateLanSession(true);
+    const list = components.find((c) => c.type === 'card-list');
+    assert.equal(list.items.length, 8);
+    assert.equal(list.items[0].title.length, 60);
+    assert.equal(list.items[0].subtitle, 'Kurzgesagt');
+    assert.equal(list.items[0].date, new Date(w.clock.now()).toISOString());
   }
 });
 
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
-  );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
+test('no video yet: a sentence instead of the list', async (t) => {
+  const w = await world(t, { pinchflat: new FakePinchflat() });
+  const components = await get(w, 'de');
+  assert.equal(components.at(-1).text, 'Noch kein Video heruntergeladen.');
 });
 
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
-    });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
-  }
+test('no server, or a server down: a message instead of figures', async (t) => {
+  const empty = await world(t, { config: {} });
+  assert.match((await get(empty))[0].text, /address of your Pinchflat server/);
+  const w = await world(t);
+  w.pinchflat.online = false;
+  await w.hub.pollAll();
+  const components = await get(w, 'fr');
+  assert.equal(components[0].items[0].value, 'Hors ligne');
 });
 
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
-  );
-});
-
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('a row without a date or a source stays valid', () => {
+  assert.deepEqual(videoItem({ title: 'Lonely', uploadDate: null, at: null }), {
+    title: 'Lonely',
+  });
 });

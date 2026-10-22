@@ -32,15 +32,20 @@ pushing.
 
 ```
 index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/app.js                        registers every handler on the hub (tests drive the same wiring)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/pinchflat/http.js             the one network function (node:http/https GET), the test seam
+src/pinchflat/client.js           pages of the web interface, error kinds (never logs the password)
+src/pinchflat/parse.js            readers of the /sources and /sources/<id> pages (real 2025.9.26 markup)
+src/devices.js                    the server device, feature names in 4 languages
+src/hub.js                        timer, states, scene events, counter of the day, connection status
+src/scenes.js                     scene action handler (manifest `scene_actions`)
+src/widgets.js                    the `latest_videos` widget (manifest `widgets`)
+src/texts.js                      messages in 4 languages
+src/store.js                      /data/pinchflat-state.json (sources, videos seen, day, latest videos)
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (mandatory)
+test/                             node --test, against the SDK's fake Gladys and test/helpers/fakePinchflat.js
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +75,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** is in four languages (English, French, German with
+  "du", Spanish with "usted"): action messages, manifest texts, widget texts,
+  feature names and `docs/{en,fr,de,es}.md`, kept in sync
+  (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +240,30 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Pinchflat (notes de cette intégration)
+
+Vérifié sur un vrai **Pinchflat 2025.9.26** (image `ghcr.io/kieraneglin/pinchflat`), le 22/10/2026, avec une vraie
+source YouTube (`@jawed`, une vidéo de 19 s) téléchargée depuis le Beelink. Pages réelles dans
+`test/fixtures/pinchflat/` (jetons de session et CSRF masqués).
+
+- **Pas d'API REST.** Choix tranché : lire les pages HTML (GET seulement). Écartés : les flux RSS par source
+  (`/sources/<uuid>/feed`, seulement les vidéos téléchargées, et il faut l'uuid de chaque source), l'OPML (protégé par
+  le `route_token` des réglages), les notifications Apprise (il faudrait un port entrant, que le bac à sable n'ouvre
+  pas), la base SQLite (montage du volume de Pinchflat, à éviter).
+- Phoenix LiveView **rend les tables côté serveur à la première requête** : un simple GET de `/sources` ou de
+  `/sources/<id>` contient les données, sans websocket. Les nombres sont dans
+  `x-text="Intl.NumberFormat().format(N)"`, les onglets d'une source dans `x-show="openTab === &#39;pending&#39;"`,
+  l'erreur yt-dlp d'une vidéo dans l'infobulle (`hero-exclamation-circle` puis `<div class="px-3">…</div>`).
+- **La page d'accueil `/` ne sert pas** : tant que l'onboarding n'est pas terminé, elle affiche l'assistant de
+  démarrage, et `/?onboarding=0` écrit un réglage. `/sources` s'affiche toujours.
+- Onglets d'une source : 10 vidéos par page, triées par **date de mise en ligne** (`uploaded_at`), pas de
+  téléchargement ; le tableau n'a pas de colonne « téléchargé le ». D'où : un événement seulement pour une vidéo
+  nouvelle de la première page, et au plus autant que le compteur a monté (la rétention qui supprime une vidéo fait
+  remonter une plus ancienne, jamais vue, qui n'est pas nouvelle).
+- « En erreur » = vidéo en attente avec `last_error` (Pinchflat efface l'erreur au succès). Un échec ne change aucun
+  compteur : la page d'une source en attente est relue toutes les 15 minutes.
+- Authentification : `BASIC_AUTH_USERNAME`/`BASIC_AUTH_PASSWORD` de Pinchflat (401 sinon). Le `/healthcheck` est
+  public (JSON `{"status":"ok"}`), mais ne distingue rien : on reconnaît Pinchflat au `<title>` des pages.
+- Pour un test Docker, créer profil et source sans formulaire :
+  `bin/pinchflat rpc 'Pinchflat.Profiles.create_media_profile(%{...}); Pinchflat.Sources.create_source(%{...})'`.

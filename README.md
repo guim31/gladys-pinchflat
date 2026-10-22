@@ -93,8 +93,8 @@ pitfalls.
 ## Credits
 
 - [Pinchflat](https://github.com/kieraneglin/pinchflat) by Kieran Eglin
-  (AGPL-3.0). The logo of the cover comes from its official repository
-  ([`priv/static/images/originals/logo-white-wordmark-with-background.png`](https://github.com/kieraneglin/pinchflat/tree/master/priv/static/images/originals)).
+  (AGPL-3.0). The icon of the cover comes from its official repository
+  ([`priv/static/images/originals/logo.png`](https://github.com/kieraneglin/pinchflat/tree/master/priv/static/images/originals)).
   No code of Pinchflat is copied: the integration only reads its web pages.
 - Built on the official
   [integration template](https://github.com/GladysAssistant/integration-template-js)

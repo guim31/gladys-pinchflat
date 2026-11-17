@@ -1,6 +1,6 @@
 {
   "name": "gladys-pinchflat",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Pinchflat (self-hosted YouTube downloader) in Gladys Assistant: new videos, queue, errors.",
   "type": "module",
